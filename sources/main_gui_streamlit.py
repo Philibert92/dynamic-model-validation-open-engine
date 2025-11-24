@@ -381,6 +381,10 @@ def create_correlation_dict(sampled_calibrated_df):
 
     col_name_p, col_name_q = get_col_name_p_q()
 
+    print(col_name_p, col_name_q)
+    print("col_name_p =", col_name_p)
+    print("Simulation columns:", sampled_calibrated_df.columns)
+
     sampled_simulated_p = sampled_calibrated_df[col_name_p].values
     sampled_simulated_q = sampled_calibrated_df[col_name_q].values
 
@@ -889,13 +893,21 @@ def main():
     # Initialize the settings with default values
     settings = Settings()
     dynawo_launcher = settings.get_dynawo_launcher()
+
+    #Stockage launcher dynawo dans streamlit
     st.session_state["dynawo_launcher"] = dynawo_launcher
+    
+    #Detection repertoire courant
     script_directory = os.path.dirname(os.path.abspath(__file__))
+
+    #Creation dossiers temporaires
     temp_folder = os.path.join(script_directory, "..", "temp")
     temp_folder_base_case = os.path.join(temp_folder, "base_case")
     temp_folder_sensitivity = os.path.join(temp_folder, "sensitivity")
     temp_folder_calibration = os.path.join(temp_folder, "calibration")
     temp_folder_custom_calibration = os.path.join(temp_folder, "custom_calibration")
+
+    #Creation des dossiers s'il sont absents
     if not os.path.isdir(temp_folder):
         os.makedirs(temp_folder)
     if not os.path.isdir(temp_folder_base_case):
@@ -906,6 +918,8 @@ def main():
         os.makedirs(temp_folder_calibration)
     if not os.path.isdir(temp_folder_custom_calibration):
         os.makedirs(temp_folder_custom_calibration)
+
+    #Stockage des chemins dans session state
     st.session_state["temp_folder_base_case"] = temp_folder_base_case
     st.session_state["temp_folder_sensitivity"] = temp_folder_sensitivity
     st.session_state["temp_folder_calibration"] = temp_folder_calibration

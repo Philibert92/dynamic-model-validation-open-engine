@@ -1,3 +1,3 @@
 dynawo_launcher:
-  value: /home/clementrem/Projects/dynawo-rte/myEnvDynawoRTE.sh
+  value: /home/philinux/dynawo/dynawo/myEnvDynawo.sh
   description: Path to the dynawo launcher, usually a dynawo.sh or myEnvDynawoRTE.sh file
