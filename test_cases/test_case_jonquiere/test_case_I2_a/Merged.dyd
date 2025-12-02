@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ns0:dynamicModelsArchitecture xmlns:ns0="http://www.rte-france.com/dynawo">
+  <ns0:blackBoxModel id="InfiniteBus" lib="InfiniteBus" parFile="Merged.par" parId="InfiniteBus" />
+  <ns0:blackBoxModel id="Line" lib="Line" parFile="Merged.par" parId="Line" />
+  <ns0:blackBoxModel id="BusPDR" lib="Bus" />
+  <ns0:connect id1="Line" var1="line_terminal1" id2="InfiniteBus" var2="infiniteBus_terminal" />
+  <ns0:connect id1="Line" var1="line_terminal2" id2="BusPDR" var2="bus_terminal" />
+  <ns0:blackBoxModel id="SetPoint_Wind_Turbine" lib="Step" parFile="Merged.par" parId="SetPoint_Wind_Turbine" />
+  <ns0:connect id1="Wind_Turbine" var1="WPP_xWPRefPu" id2="SetPoint_Wind_Turbine" var2="step_step" />
+  <ns0:blackBoxModel id="OmegaRef" lib="SetPoint" parFile="Merged.par" parId="OmegaRef" />
+  <ns0:connect id1="Wind_Turbine" var1="WPP_omegaRefPu" id2="OmegaRef" var2="setPoint_setPoint" />
+  <ns0:blackBoxModel id="StepUp_Xfmr" lib="TransformerRatioTapChanger" parFile="Merged.par" parId="StepUp_Xfmr" />
+  <ns0:blackBoxModel id="Wind_Turbine" lib="IECWPP4ACurrentSource2020" parFile="Merged.par" parId="Wind_Turbine" />
+  <ns0:connect id1="StepUp_Xfmr" var1="transformer_terminal1" id2="BusPDR" var2="bus_terminal" />
+  <ns0:connect id1="Wind_Turbine" var1="WPP_terminal" id2="StepUp_Xfmr" var2="transformer_terminal2" />
+</ns0:dynamicModelsArchitecture>

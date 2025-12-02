@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<curvesInput xmlns="http://www.rte-france.com/dynawo">
+  <curve model="Wind_Turbine" variable="WPP_wPPControl_measurements_PPu"/>
+  <curve model="Wind_Turbine" variable="WPP_wPPControl_measurements_QPu"/>
+  <curve model="Wind_Turbine" variable="WPP_wPPControl_measurements_UPu"/>
+</curvesInput>

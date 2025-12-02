@@ -27,7 +27,7 @@ def get_measured_data(csv_path):
     measured_data_df.set_index("time", inplace=True)
     measured_data_df = remove_rows_with_same_index(measured_data_df)
     col_name_p = [col for col in measured_data_df.columns
-                  if col.endswith("PGenPu") or col.endswith("PGenNomPu") or col.endswith("PPu")][0]
+                  if col.endswith("PGenPu") or col.endswith("PGenNomPu") or col.endswith("PPu") or col.endswith("UPu")][0]
     col_name_q = [col for col in measured_data_df.columns
                   if col.endswith("QGenPu") or col.endswith("QGenNomPu") or col.endswith("QPu")][0]
     st.session_state["col_name_p"] = col_name_p
