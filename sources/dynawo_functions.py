@@ -18,6 +18,8 @@ import subprocess
 from settings import Settings
 from util_functions import remove_rows_with_same_index, sample_df, rmse
 import xml.etree.ElementTree as ET
+from collections import defaultdict
+from copy import deepcopy
 
 
 class DynawoFailedException(Exception):
@@ -231,7 +233,7 @@ def get_parameters_sets(par_file):
             # there exists also "reference" tags, but they refer to init values in the iidm file
             # these values are not relevant for the purpose of this model validation application
         parameters_sets[set_id] = parameters
-
+    print("parameters_set :", parameters_sets)
     return parameters_sets
 
 

@@ -52,20 +52,30 @@ def create_webpage_header():
 
 
 def reinit_analysis(
-    temp_folder_base_case,
-    temp_folder_sensitivity,
-    temp_folder_calibration,
-    temp_folder_custom_calibration
+    temp_folders_base_cases,
+    temp_folders_sensitivity_cases,
+    temp_folders_calibration_cases,
+    temp_folders_custom_calibration_cases
 ):
-    clean_directory(temp_folder_base_case)
-    clean_directory(temp_folder_sensitivity)
-    clean_directory(temp_folder_calibration)
-    clean_directory(temp_folder_custom_calibration)
+    """
+    Réinitialise l'analyse :
+    - Vide les dossiers temporaires utilisés dans l'analyse
+    - Supprime toutes les variables du session_state de Streamlit contenant les données, résultats et logs.
+    - Nettoie les loggers spécifiques à l'application.
+    """
 
+    # Nettoyage des dossiers
+    for case in temp_folders_base_cases:
+        clean_directory(temp_folders_base_cases[case])
+        clean_directory(temp_folders_sensitivity_cases[case])
+        clean_directory(temp_folders_calibration_cases[case])
+        clean_directory(temp_folders_custom_calibration_cases[case])
+
+    # Suppression des données stockées dans session_state 
     if "measured_data_df" in st.session_state:
         del st.session_state["measured_data_df"]
-    if "jobs_file" in st.session_state:
-        del st.session_state["jobs_file"]
+    if "jobs_files" in st.session_state:
+        del st.session_state["jobs_files"]
     if "iidm_file" in st.session_state:
         del st.session_state["iidm_file"]
     if "dyd_file" in st.session_state:
@@ -103,6 +113,7 @@ def reinit_analysis(
     if "log_area_custom_calibration_content" in st.session_state:
         del st.session_state["log_area_custom_calibration_content"]
 
+    # Nettoyage des loggers
     clear_streamlit_logger("base_case_st_logger")
     clear_streamlit_logger("sensitivity_st_logger")
     clear_streamlit_logger("calibration_st_logger")
@@ -124,169 +135,248 @@ def create_data_tab():
             if st.session_state.last_zip_hash != current_hash:
                 st.session_state.last_zip_hash = current_hash
 
-                temp_folder_base_case = st.session_state["temp_folder_base_case"]
-                temp_folder_sensitivity = st.session_state["temp_folder_sensitivity"]
-                temp_folder_calibration = st.session_state["temp_folder_calibration"]
-                temp_folder_custom_calibration = st.session_state["temp_folder_custom_calibration"]
+                temp_folders_base_cases = st.session_state["temp_folders_base_cases"] # Liste de dossiers des cas tests
+                temp_folders_sensitivity_cases = st.session_state["temp_folders_sensitivity_cases"]
+                temp_folders_calibration_cases = st.session_state["temp_folders_calibration_cases"]
+                temp_folders_custom_calibration_cases = st.session_state["temp_folders_custom_calibration_cases"]
 
+                # ATTENTION, à adapter pour plusieurs cas !
                 reinit_analysis(
-                    temp_folder_base_case,
-                    temp_folder_sensitivity,
-                    temp_folder_calibration,
-                    temp_folder_custom_calibration
+                    temp_folders_base_cases,
+                    temp_folders_sensitivity_cases,
+                    temp_folders_calibration_cases,
+                    temp_folders_custom_calibration_cases
                 )
 
-                extracted_files = extract_files(zipped_data, temp_folder_base_case)
-
+                # cases_files is a dictionary : {'case_1' : [path to .txt, path to file .csv, ...], 'case_2':[...], ...}
+                # common_par_file est le chemin d'un fichier.par reprennant les parametres communs aux cas à simuler et qu'on veut optimiser
+                cases_files, common_par_file = extract_files(zipped_data, temp_folders_base_cases) 
+                print("cases_files :", cases_files)
+                
                 # PMU data for P and Q (measured)
-                uploaded_measured_file = [file for file in extracted_files if file.endswith(".csv")][0]
-                uploaded_measured_file = os.path.join(temp_folder_base_case, uploaded_measured_file)
-                try:
-                    measured_data_df = get_measured_data(uploaded_measured_file)
-                    sampled_measured_data_df = sample_df(measured_data_df)
-                    st.session_state["measured_data_df"] = measured_data_df
-                    st.session_state["sampled_measured_data_df"] = sampled_measured_data_df
-                except Exception as e:
-                    st.exception(e)
+                measured_data_df_dic = {} # dictionnary of measured data frames by case
+                sampled_measured_data_df_dic = {} # dictionnary of sampled measured data frames by case
+                for case in cases_files:
+                    uploaded_measured_file = [file for file in cases_files[case] if file.endswith(".csv")][0]
+                    uploaded_measured_file = os.path.join(temp_folders_base_cases[case], uploaded_measured_file)
+                    try:
+                        measured_data_df = get_measured_data(uploaded_measured_file)
+                        sampled_measured_data_df = sample_df(measured_data_df)
+                        measured_data_df_dic[case] = measured_data_df
+                        sampled_measured_data_df_dic[case] = sampled_measured_data_df
+                    except Exception as e:
+                        st.exception(e)
+
+                st.session_state["measured_data_df_dic"] = measured_data_df_dic
+                st.session_state["sampled_measured_data_df_dic"] = sampled_measured_data_df_dic
 
                 # jobs file for Dynawo Simulation
-                uploaded_jobs = [file for file in extracted_files if file.endswith(".jobs")][0]
-                temp_jobs_file_path = os.path.join(temp_folder_base_case, uploaded_jobs)
-                st.session_state["jobs_file"] = temp_jobs_file_path
+                jobs_files_paths = {} # dictionnary of jobs files by case
+                for case in cases_files:
+                    uploaded_jobs = [file for file in cases_files[case] if file.endswith(".jobs")][0]
+                    jobs_file_path = os.path.join(temp_folders_base_cases[case], uploaded_jobs)
+                    jobs_files_paths[case] = jobs_file_path
+                st.session_state["jobs_files"] = jobs_files_paths
 
-                # IIDM file for Dynawo Simulation
-                uploaded_iidms = [file for file in extracted_files if file.endswith("iidm")]  # TODO: même traitement pour les autres ?
-                if len(uploaded_iidms) > 0:
-                    uploaded_iidm = uploaded_iidms[0]
-                    temp_iidm_file_path = os.path.join(temp_folder_base_case, uploaded_iidm)
-                    st.session_state["iidm_file"] = temp_iidm_file_path
+                # # IIDM file for Dynawo Simulation
+                # uploaded_iidms = [file for file in cases_files if file.endswith("iidm")]  # TODO: même traitement pour les autres ?
+                # if len(uploaded_iidms) > 0:
+                #     uploaded_iidm = uploaded_iidms[0]
+                #     temp_iidm_file_path = os.path.join(temp_folders_base_cases, uploaded_iidm)
+                #     st.session_state["iidm_file"] = temp_iidm_file_path
 
                 # dyd file for Dynawo Simulation
-                uploaded_dyd = [file for file in extracted_files if file.endswith(".dyd")][0]
-                temp_dyd_file_path = os.path.join(temp_folder_base_case, uploaded_dyd)
-                st.session_state["dyd_file"] = temp_dyd_file_path
+                dyd_files_paths = {} # dictionnary of dyd files by case
+                for case in cases_files:
+                    uploaded_dyd = [file for file in cases_files[case] if file.endswith(".dyd")][0]
+                    dyd_files_paths[case] = os.path.join(temp_folders_base_cases[case], uploaded_dyd)
+                st.session_state["dyd_files"] = dyd_files_paths
 
                 # par file for Dynawo Simulation
-                uploaded_par = [file for file in extracted_files if file.endswith(".par")][0]
-                temp_par_file_path = os.path.join(temp_folder_base_case, uploaded_par)
-                st.session_state["par_file"] = temp_par_file_path
+                par_files_paths = {} # dictionnary of par files by case
+                for case in cases_files:  
+                    uploaded_par = [file for file in cases_files[case] if file.endswith(".par")][0]
+                    par_files_paths[case] = os.path.join(temp_folders_base_cases[case], uploaded_par)
+                st.session_state["par_files"] = par_files_paths
                 # something special related to the par file
-                st.session_state["parameters_sets"] = get_parameters_sets(temp_par_file_path)
+                st.session_state["parameters_sets"] = get_parameters_sets(common_par_file)
 
                 # crv file for Dynawo Simulation
-                uploaded_crv = [file for file in extracted_files if file.endswith(".crv")][0]
-                temp_crv_file_path = os.path.join(temp_folder_base_case, uploaded_crv)
-                st.session_state["crv_file"] = temp_crv_file_path
+                crv_files_paths = {} # dictionnary of crv files by case
+                for case in cases_files:
+                    uploaded_crv = [file for file in cases_files[case] if file.endswith(".crv")][0]
+                    crv_files_paths[case] = os.path.join(temp_folders_base_cases[case], uploaded_crv)
+                st.session_state["crv_files"] = crv_files_paths
 
                 # U and Theta data at the infinite bus, for Dynawo Simulation
-                uploaded_table_infinite_bus = [file for file in extracted_files if file.endswith(".txt")][0]
-                temp_infinite_bus_table_file_path = os.path.join(temp_folder_base_case, uploaded_table_infinite_bus)
-                st.session_state["table_infinite_bus_file"] = temp_infinite_bus_table_file_path
-
+                infinite_bus_table_files_paths = {} # dictionnary of infinite_bus_table files by case
+                for case in cases_files:
+                    uploaded_infinite_bus_table = [file for file in cases_files[case] if file.endswith(".txt")][0]
+                    infinite_bus_table_files_paths[case] = os.path.join(temp_folders_base_cases[case], uploaded_infinite_bus_table)
+                st.session_state["infinite_bus_table_files"] = infinite_bus_table_files_paths
 
     with col_2:
         st.write("")  # for spacing
 
     with col_3:
-        with st.expander("P and Q from PMU Data (measured_data.csv)"):
-            if "measured_data_df" in st.session_state:
-                st.write(st.session_state["measured_data_df"])
+        with st.expander("P (or U) and Q from PMU Data (measured_data.csv)"):
+            if "measured_data_df_dic" in st.session_state:
+                st.write(st.session_state["measured_data_df_dic"])
             else:
                 st.write("Data have not been uploaded yet")
-        with st.expander("Dynawo jobs file"):
-            if "jobs_file" in st.session_state:
-                uploaded_jobs_name = os.path.basename(st.session_state["jobs_file"])
-                st.write("jobs file has been uploaded: " + uploaded_jobs_name)
+        with st.expander("Dynawo jobs files"):
+            if "jobs_files" in st.session_state:
+                st.write(st.session_state["jobs_files"])
             else:
-                st.write("jobs file has not been uploaded yet")
-        with st.expander("Dynawo iidm file"):
-            if "iidm_file" in st.session_state:
-                uploaded_jobs_name = os.path.basename(st.session_state["iidm_file"])
-                st.write("iidm file has been uploaded: " + uploaded_jobs_name)
+                st.write("jobs files have not been uploaded yet")
+        # with st.expander("Dynawo iidm files"):
+        #     if "iidm_file" in st.session_state:
+        #         uploaded_jobs_name = os.path.basename(st.session_state["iidm_file"])
+        #         st.write("iidm files have been uploaded: " + uploaded_jobs_name)
+        #     else:
+        #         st.write("iidm files have not been uploaded yet")
+        with st.expander("Dynawo dyd files"):
+            if "dyd_files" in st.session_state:
+                st.write(st.session_state["dyd_files"])
             else:
-                st.write("iidm file has not been uploaded yet")
-        with st.expander("Dynawo dyd file"):
-            if "dyd_file" in st.session_state:
-                uploaded_dyd_name = os.path.basename(st.session_state["dyd_file"])
-                st.write("dyd file has been uploaded: " + uploaded_dyd_name)
+                st.write("dyd files have not been uploaded yet")
+        with st.expander("Dynawo par files"):
+            if "par_files" in st.session_state:
+                st.write(st.session_state["par_files"])
             else:
-                st.write("dyd file has not been uploaded yet")
-        with st.expander("Dynawo par file"):
-            if "par_file" in st.session_state:
-                uploaded_par_name = os.path.basename(st.session_state["par_file"])
-                st.write("par file has been uploaded: " + uploaded_par_name)
+                st.write("par files have not been uploaded yet")
+        with st.expander("Dynawo crv files"):
+            if "crv_files" in st.session_state:
+                st.write(st.session_state["crv_files"])
             else:
-                st.write("par file has not been uploaded yet")
-        with st.expander("Dynawo crv file"):
-            if "crv_file" in st.session_state:
-                uploaded_crv_name = os.path.basename(st.session_state["crv_file"])
-                st.write("crv file has been uploaded: " + uploaded_crv_name)
+                st.write("crv files have not been uploaded yet")
+        with st.expander("Infinite bus table files"):
+            if "infinite_bus_table_files" in st.session_state:
+                st.write(st.session_state["infinite_bus_table_files"])
             else:
-                st.write("crv file has not been uploaded yet")
-        with st.expander("Infinite bus table file"):
-            if "table_infinite_bus_file" in st.session_state:
-                uploaded_table_infinite_bus_name = os.path.basename(st.session_state["table_infinite_bus_file"])
-                st.write("Infinite bus table file has been uploaded: " + uploaded_table_infinite_bus_name)
-            else:
-                st.write("Infinite bus table file has not been uploaded yet")
+                st.write("Infinite bus table files have not been uploaded yet")
 
 
-def extract_files(zipped_data, temp_folder_base_case):
-    extracted_files = []
+def extract_files(zipped_data, temp_folders_base_cases):
+    
+    """
+    zipped_data : Data uploaded by Streamlit (zipfile)
+    temp_folders_base_cases : list of 'base_case_i' absolute paths
+        ex: [ ".../temp/base_case_1", ".../temp/base_case_2", ... ]
+    
+    The function expects the ZIP to contain folders:
+        case_1/, case_2/, ..., matching the indices.
+    """
+    
+    # Nombre de cas attendus
+    nb_cases = len(temp_folders_base_cases)
 
+    # Dictionnaire résultat
+    cases_files = {}  # ex: {"case_1": {"measured_data": "...", ...}}
+    common_par_file = None   # fichier .par commun
+
+    # --- Extraction sécurisée ---
     with zipfile.ZipFile(zipped_data, "r") as zip_ref:
+
         for zip_info in zip_ref.infolist():
-            extracted_path = os.path.abspath(os.path.join(temp_folder_base_case, zip_info.filename))
-            # security precaution in order to avoid Transversal Path attack
-            if not extracted_path.startswith(os.path.abspath(temp_folder_base_case)):
-                st.warning(f"Skipping suspicious file in ZIP (path: {zip_info.filename})")
+
+            print("fichier du zip :", zip_info.filename)
+
+            # Ignorer les dossiers
+            if zip_info.is_dir():
                 continue
+
+            # Exemple de zip_info.filename : "case_1/measured_data.csv"
+            parts = zip_info.filename.split("/")
+            print("parts :", parts)
+
+            # Cas 1 : fichier common.par à la racine du zip
+            if len(parts) == 1:
+                filename = parts[0]
+
+                # Nous voulons détecter un fichier .par commun
+                if filename.endswith(".par"):
+                    st.write(f"Fichier par commun détecté : {filename}")
+
+                    # On l’extrait dans le dossier parent (celui de base_case_1)
+                    parent_temp = os.path.dirname(list(temp_folders_base_cases.values())[0])
+                    common_par_path = os.path.join(parent_temp, filename)
+
+                    with zip_ref.open(zip_info) as src, open(common_par_path, "wb") as dst:
+                        shutil.copyfileobj(src, dst)
+
+                    common_par_file = common_par_path
+                    continue
+
+                else:
+                    st.warning(f"Ignoring file at ZIP root: {filename}")
+                    continue
+
+            # Cas 2 : fichier dans case_i/ 
+            case_name = parts[0]  # "case_1"
+            inner_filename = "/".join(parts[1:])  # "measured_data.csv"
+
+            # Vérifier que case_X est du bon format
+            if not case_name.startswith("case_"):
+                st.warning(f"Unexpected directory '{case_name}' in ZIP")
+                continue
+
+            # Convertir case_X → index X
+            try:
+                index = int(case_name.replace("case_", ""))
+            except ValueError:
+                st.error(f"Invalid case directory name: {case_name}")
+                continue
+
+            # Vérifier que l’index existe dans temp_folders_base_cases
+            if index < 1 or index > nb_cases:
+                st.error(f"Case index {index} found in ZIP but no base_case_{index} created.")
+                continue
+
+            # Dossier de destination
+            dest_folder = temp_folders_base_cases[case_name]
+
+            # Chemin final
+            extracted_path = os.path.abspath(os.path.join(dest_folder, inner_filename))
+
+            # Sécurité : éviter les traversals
+            if not extracted_path.startswith(os.path.abspath(dest_folder)):
+                st.warning(f"Skipping suspicious path in ZIP: {zip_info.filename}")
+                continue
+
+            # Créer dossier si besoin
             os.makedirs(os.path.dirname(extracted_path), exist_ok=True)
-            with zip_ref.open(zip_info) as source, open(extracted_path, "wb") as target:
-                shutil.copyfileobj(source, target)
-            rel_path = os.path.relpath(extracted_path, temp_folder_base_case)
-            extracted_files.append(rel_path)
 
-    extracted_files = os.listdir(temp_folder_base_case)
-    st.write(extracted_files)
+            # Extraire fichier
+            with zip_ref.open(zip_info) as src, open(extracted_path, "wb") as dst:
+                shutil.copyfileobj(src, dst)
 
-    required_files = [
-        "measured_data.csv",
-        ".txt",
-        ".crv",
-        ".dyd",
-        ".jobs",
-        ".par"
-    ]
-    found_files = {key: [] for key in required_files}
+            # Stocker pour vérif
+            if case_name not in cases_files:
+                cases_files[case_name] = []
+            cases_files[case_name].append(extracted_path)
 
-    for f in extracted_files:
-        filename = os.path.basename(f)
-        if filename == "measured_data.csv":
-            found_files["measured_data.csv"].append(f)
-        elif filename.endswith(".txt"):
-            found_files[".txt"].append(f)
-        elif filename.endswith(".crv"):
-            found_files[".crv"].append(f)
-        elif filename.endswith(".dyd"):
-            found_files[".dyd"].append(f)
-        elif filename.endswith(".jobs"):
-            found_files[".jobs"].append(f)
-        elif filename.endswith(".par"):
-            found_files[".par"].append(f)
+    # --- Vérifications obligatoires pour chaque case ---
+    required_exts = [".csv", ".dyd", ".par", ".txt", ".jobs", ".crv"]
 
-    errors = []
-    for key in required_files:
-        if len(found_files[key]) == 0:
-            errors.append(f"Required file '{key}' missing from ZIP.")
-        elif len(found_files[key]) > 1:
-            errors.append(f"Several '{key}' files found in ZIP: {found_files[key]}")
+    for i in range(1, nb_cases + 1):
+        case_name = f"case_{i}"
 
-    if errors:
-        for msg in errors:
-            st.error(msg)
+        if case_name not in cases_files:
+            st.error(f"Missing folder {case_name} in ZIP.")
+            continue
 
-    return extracted_files
+        found = cases_files[case_name]
+        filenames = [os.path.basename(f) for f in found]
+
+        for ext in required_exts:
+            candidates = [f for f in filenames if f.endswith(ext)]
+            if len(candidates) == 0:
+                st.error(f"Missing *{ext}* file in ZIP for {case_name}.")
+            elif len(candidates) > 1:
+                st.error(f"Multiple *{ext}* files found in {case_name}: {candidates}")
+
+    return cases_files, common_par_file
 
 
 def are_measures_uploaded():
@@ -297,11 +387,11 @@ def are_measures_uploaded():
 
 
 def are_dynawo_inputs_loaded():
-    if "jobs_file" in st.session_state \
-            and "dyd_file" in st.session_state \
-            and "par_file" in st.session_state \
-            and "crv_file" in st.session_state \
-            and "table_infinite_bus_file" in st.session_state:
+    if "jobs_files" in st.session_state \
+            and "dyd_files" in st.session_state \
+            and "par_files" in st.session_state \
+            and "crv_files" in st.session_state \
+            and "infinite_bus_table_files" in st.session_state:
         return True
     else:
         return False
@@ -329,54 +419,107 @@ def is_custom_case_calculated():
 
 def create_dynawo_tab():
     dynawo_launcher = st.session_state["dynawo_launcher"]
-    if are_dynawo_inputs_loaded():
-        jobs_file = st.session_state["jobs_file"]
+    
+    if not are_dynawo_inputs_loaded():
+        st.write("You need to upload the Dynawo input files before running a simulation")
+        return
+    
+    jobs_files = st.session_state["jobs_files"]
+    case_names = list(jobs_files.keys())
+    print(jobs_files)
 
-        def on_click():
-            streamlit_logger_base_case = initialize_streamlit_logger(
-                st.session_state["log_area_base_case"], "base_case_st_logger", debug=False)
+    # Zone logs
+    if "log_area_dynawo" not in st.session_state:
+        st.session_state["log_area_dynawo"] = st.empty()
+
+    log_area = st.session_state["log_area_dynawo"]
+
+    def on_click_run_all():
+        
+        # Dictionnaires qui stockeront les résultats multi-cas
+        simulation_data = {}
+        correlations = {}
+        logs_dict = {}
+        
+        sampled_measured_data_df_dic = st.session_state["sampled_measured_data_df_dic"]
+
+        log_area.code("Starting Dynawo batch simulation...\n", language="text")
+
+        # -----------------------------------------------------------------
+        #  Boucle sur tous les cas
+        # -----------------------------------------------------------------
+        for case_name in case_names:
+
+            jobs_path = jobs_files[case_name]
+            
+            # Fenêtre temporelle de référence : les mesures
+            measured_df = sampled_measured_data_df_dic[case_name]
+            start_t = measured_df.index[0]
+            end_t = measured_df.index[-1]
+
+            logger_case = initialize_streamlit_logger(
+                log_area,
+                f"logger_{case_name}",
+                debug=False
+            )
+
+            log_area.code(f"=== Running {case_name} ===\n", language="text")
 
             try:
-                base_case_simulation_data_df = run_dynawo(dynawo_launcher, jobs_file, streamlit_logger_base_case)
+                # Lancer Dynawo
+                simu_df = run_dynawo(dynawo_launcher, jobs_path, logger_case)
+                # Échantillonnage au même pas de temps que les mesures
+                simu_resampled_df = sample_df(simu_df, start_t, end_t)
+                # Corrélation
+                corr_dict = create_correlation_dict(simu_resampled_df, measured_df)
 
-                sampled_measured_data_df = st.session_state["sampled_measured_data_df"]
-                measured_data_start_time = sampled_measured_data_df.index[0]
-                measured_data_end_time = sampled_measured_data_df.index[-1]
-                sampled_base_case_simulation_data_df = sample_df(
-                    base_case_simulation_data_df,
-                    measured_data_start_time,
-                    measured_data_end_time
+                # Stockage dans dictionnaires cohérents
+                simulation_data[case_name] = simu_df
+                correlations[case_name] = corr_dict
+                logs_dict[case_name] = get_streamlit_logs(logger_case)
+
+            except DynawoFailedException:
+                log_area.code(
+                    f"[ERROR] Dynawo failed for {case_name}\n",
+                    language="text"
                 )
-                base_case_correlation_dict = create_correlation_dict(sampled_base_case_simulation_data_df)
+                logs_dict[case_name] = get_streamlit_logs(logger_case)
+                # Continue avec les autres cas
 
-                st.session_state["base_case_simulation_data_df"] = base_case_simulation_data_df
-                st.session_state["base_case_correlation_dict"] = base_case_correlation_dict
-                st.session_state["log_area_base_case_content"] = get_streamlit_logs(streamlit_logger_base_case)
-            except DynawoFailedException:  # Verifier si ça marche bien, avec par exemple un exe /home/clementrem/workspace/dynawo-rte/myEnvDynawoRTE.sh
-                if "base_case_simulation_data_df" in st.session_state:
-                    del st.session_state["base_case_simulation_data_df"]
-                if "base_case_correlation_dict" in st.session_state:
-                    del st.session_state["base_case_correlation_dict"]
-                st.session_state["log_area_base_case_content"] = get_streamlit_logs(streamlit_logger_base_case)
+        # -----------------------------------------------------------------
+        #  Stockage final dans session_state
+        # -----------------------------------------------------------------
+        st.session_state["simulation_data_df"] = simulation_data
+        st.session_state["correlation_dicts"] = correlations
+        st.session_state["dynawo_logs"] = logs_dict
 
-        st.button(
-            label="Run Dynawo Simulation for the base case",
-            key="base_case_dynawo_simulation_button",
-            type="primary",
-            on_click=on_click
+        log_area.code(
+            "=== Dynawo batch simulation completed ===\n",
+            language="text"
         )
 
-        if "log_area_base_case" not in st.session_state:
-            st.session_state["log_area_base_case"] = st.empty()
-        else:
-            log_area_base_case = st.session_state["log_area_base_case"]
-            if "log_area_base_case_content" in st.session_state:
-                log_area_base_case.code(st.session_state["log_area_base_case_content"])
-    else:
-        st.write("You need to upload the Dynawo input files before running a simulation")
+    # ---------------------------------------------------------------------
+    #  Bouton Run All Cases
+    # ---------------------------------------------------------------------
+    st.button(
+        label=f"Run Dynawo Simulation for all {len(case_names)} cases",
+        key="run_all_cases_button",
+        type="primary",
+        on_click=on_click_run_all
+    )
+
+    # ---------------------------------------------------------------------
+    #  Réaffichage des logs si déjà présents (Streamlit reload)
+    # ---------------------------------------------------------------------
+    if "dynawo_logs" in st.session_state:
+        logs = st.session_state["dynawo_logs"]
+        txt = ""
+        for case_name, content in logs.items():
+            txt += f"### {case_name} ###\n{content}\n\n"
+        log_area.code(txt)
 
 
-def create_correlation_dict(sampled_calibrated_df):
+def create_correlation_dict(sampled_calibrated_df, sampled_measured_data_df):
     correlation_dict = dict()
 
     col_name_p, col_name_q = get_col_name_p_q()
@@ -388,7 +531,6 @@ def create_correlation_dict(sampled_calibrated_df):
     sampled_simulated_p = sampled_calibrated_df[col_name_p].values
     sampled_simulated_q = sampled_calibrated_df[col_name_q].values
 
-    sampled_measured_data_df = st.session_state["sampled_measured_data_df"]
     sampled_measured_p = sampled_measured_data_df[col_name_p].values
     sampled_measured_q = sampled_measured_data_df[col_name_q].values
 
@@ -588,17 +730,17 @@ def create_sensitivity_tab():
                     st.session_state["log_area_base_case_sensitivity"], "sensitivity_st_logger", debug=False)
 
                 if len(selected_sets) > 0:
-                    temp_folder_sensitivity = st.session_state["temp_folder_sensitivity"]
-                    for element in os.listdir(st.session_state["temp_folder_base_case"]):
-                        src = os.path.join(st.session_state["temp_folder_base_case"], element)
+                    temp_folders_sensitivity_cases = st.session_state["temp_folders_sensitivity_cases"]
+                    for element in os.listdir(st.session_state["temp_folders_base_cases"]):
+                        src = os.path.join(st.session_state["temp_folders_base_cases"], element)
                         if os.path.isfile(src):
-                            shutil.copy(src, temp_folder_sensitivity)
+                            shutil.copy(src, temp_folders_sensitivity_cases)
                     jobs_file_sensitivity = os.path.join(
-                        temp_folder_sensitivity,
+                        temp_folders_sensitivity_cases,
                         os.path.basename(st.session_state["jobs_file"])
                     )
                     par_file_sensitivity = os.path.join(
-                        temp_folder_sensitivity,
+                        temp_folders_sensitivity_cases,
                         os.path.basename(st.session_state["par_file"])
                     )
 
@@ -706,17 +848,17 @@ def create_param_calibration_tab():
                     st.session_state["log_area_base_case_calibration"], "calibration_st_logger", debug=False)
 
                 if len(selected_sets) > 0:
-                    temp_folder_calibration = st.session_state["temp_folder_calibration"]
-                    for element in os.listdir(st.session_state["temp_folder_base_case"]):
-                        src = os.path.join(st.session_state["temp_folder_base_case"], element)
+                    temp_folders_calibration_cases = st.session_state["temp_folders_calibration_cases"]
+                    for element in os.listdir(st.session_state["temp_folders_base_cases"]):
+                        src = os.path.join(st.session_state["temp_folders_base_cases"], element)
                         if os.path.isfile(src):
-                            shutil.copy(src, temp_folder_calibration)
+                            shutil.copy(src, temp_folders_calibration_cases)
                     jobs_file_calibration = os.path.join(
-                        temp_folder_calibration,
+                        temp_folders_calibration_cases,
                         os.path.basename(st.session_state["jobs_file"])
                     )
                     par_file_calibration = os.path.join(
-                        temp_folder_calibration,
+                        temp_folders_calibration_cases,
                         os.path.basename(st.session_state["par_file"])
                     )
 
@@ -821,17 +963,17 @@ def create_custom_calibration_tab():
                     st.session_state["log_area_custom_calibration"], "custom_calibration_st_logger", debug=False)
 
                 if len(selected_sets) > 0:
-                    temp_folder_custom_calibration = st.session_state["temp_folder_custom_calibration"]
-                    for element in os.listdir(st.session_state["temp_folder_base_case"]):
-                        src = os.path.join(st.session_state["temp_folder_base_case"], element)
+                    temp_folders_custom_calibration_cases = st.session_state["temp_folders_custom_calibration_cases"]
+                    for element in os.listdir(st.session_state["temp_folders_base_cases"]):
+                        src = os.path.join(st.session_state["temp_folders_base_cases"], element)
                         if os.path.isfile(src):
-                            shutil.copy(src, temp_folder_custom_calibration)
+                            shutil.copy(src, temp_folders_custom_calibration_cases)
                     jobs_file_calibration = os.path.join(
-                        temp_folder_custom_calibration,
+                        temp_folders_custom_calibration_cases,
                         os.path.basename(st.session_state["jobs_file"])
                     )
                     par_file_calibration = os.path.join(
-                        temp_folder_custom_calibration,
+                        temp_folders_custom_calibration_cases,
                         os.path.basename(st.session_state["par_file"])
                     )
 
@@ -887,6 +1029,7 @@ def create_custom_calibration_tab():
 
 
 def main():
+
     # Creating the webapp
     create_webpage_header()
 
@@ -899,31 +1042,41 @@ def main():
     
     #Detection repertoire courant
     script_directory = os.path.dirname(os.path.abspath(__file__))
-
+    
+    # -------- CONFIGURER ICI LE NOMBRE DE SCENARIOS PRIS EN CHARGE --------
+    nb_cases = 2  # Mets ici le nombre que tu veux (2, 3, ...)
+    
     #Creation dossiers temporaires
     temp_folder = os.path.join(script_directory, "..", "temp")
-    temp_folder_base_case = os.path.join(temp_folder, "base_case")
-    temp_folder_sensitivity = os.path.join(temp_folder, "sensitivity")
-    temp_folder_calibration = os.path.join(temp_folder, "calibration")
-    temp_folder_custom_calibration = os.path.join(temp_folder, "custom_calibration")
+    folders_to_create = [temp_folder]
+    temp_folders_base_cases = {}
+    temp_folders_sensitivity_cases = {}
+    temp_folders_calibration_cases = {}
+    temp_folders_custom_calibration_cases = {}
+
+    for i in range(nb_cases):
+        base = os.path.join(temp_folder, f"base_case_{i+1}")
+        temp_folders_base_cases[f"case_{i+1}"] = base
+        sensitivity = os.path.join(temp_folder, f"sensitivity_case_{i+1}")
+        temp_folders_sensitivity_cases[f"case_{i+1}"] = sensitivity
+        calibration = os.path.join(temp_folder, f"calibration_case_{i+1}")
+        temp_folders_calibration_cases[f"case_{i+1}"] = calibration
+        custom = os.path.join(temp_folder, f"custom_case_{i+1}")
+        temp_folders_custom_calibration_cases[f"case_{i+1}"] = custom
+        folders_to_create += [base, sensitivity, calibration, custom]
 
     #Creation des dossiers s'il sont absents
-    if not os.path.isdir(temp_folder):
-        os.makedirs(temp_folder)
-    if not os.path.isdir(temp_folder_base_case):
-        os.makedirs(temp_folder_base_case)
-    if not os.path.isdir(temp_folder_sensitivity):
-        os.makedirs(temp_folder_sensitivity)
-    if not os.path.isdir(temp_folder_calibration):
-        os.makedirs(temp_folder_calibration)
-    if not os.path.isdir(temp_folder_custom_calibration):
-        os.makedirs(temp_folder_custom_calibration)
+    for folder in folders_to_create:
+        if not os.path.isdir(folder):
+            os.makedirs(folder)
 
     #Stockage des chemins dans session state
-    st.session_state["temp_folder_base_case"] = temp_folder_base_case
-    st.session_state["temp_folder_sensitivity"] = temp_folder_sensitivity
-    st.session_state["temp_folder_calibration"] = temp_folder_calibration
-    st.session_state["temp_folder_custom_calibration"] = temp_folder_custom_calibration
+    st.session_state["temp_folders_base_cases"] = temp_folders_base_cases # dictionnaire {'case_1' : 'path to base_case temporary directory', 'case_2' : ..., ...}
+    st.session_state["temp_folders_sensitivity_cases"] = temp_folders_sensitivity_cases
+    st.session_state["temp_folders_calibration_cases"] = temp_folders_calibration_cases
+    st.session_state["temp_folders_custom_calibration_cases"] = temp_folders_custom_calibration_cases
+    st.session_state["nb_cases"] = nb_cases
+    print(temp_folders_base_cases)
 
     # Creating tabs
     data_tab, dynawo_tab, plot_tab, sensitivity_tab, param_calibration_tab, custom_param_calibration_tab \
