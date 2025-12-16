@@ -27,9 +27,9 @@ def get_measured_data(csv_path):
     measured_data_df.set_index("time", inplace=True)
     measured_data_df = remove_rows_with_same_index(measured_data_df)
     col_name_p = [col for col in measured_data_df.columns
-                  if col.endswith("PGenPu") or col.endswith("PGenNomPu")][0]
+                  if col.endswith("PGenPu") or col.endswith("PGenNomPu") or col.endswith("PPu") or col.endswith("UPu")][0]
     col_name_q = [col for col in measured_data_df.columns
-                  if col.endswith("QGenPu") or col.endswith("QGenNomPu")][0]
+                  if col.endswith("QGenPu") or col.endswith("QGenNomPu") or col.endswith("QPu")][0]
     st.session_state["col_name_p"] = col_name_p
     st.session_state["col_name_q"] = col_name_q
     measured_data_df[col_name_p] = pd.to_numeric(measured_data_df[col_name_p], errors='coerce')
@@ -111,7 +111,6 @@ def similarity_metrics(x, y):
     a_beta = 1 - np.mean(np.tanh(np.log(3) / 2 * angle_ratio))
     return m_alpha, a_beta
 
-
 def rmse(measured_p, measured_q, simulated_p, simulated_q):
     """
     measured_p, measured_q, simulated_p, simulated_q are numpy Arrays of same length
@@ -121,7 +120,6 @@ def rmse(measured_p, measured_q, simulated_p, simulated_q):
     mean_error = np.mean(errors)
     rmse = np.sqrt(mean_error)
     return rmse
-
 
 def clean_directory(folder_path):
     for file_object in os.listdir(folder_path):

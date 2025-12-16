@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ns0:jobs xmlns:ns0="http://www.rte-france.com/dynawo">
+  <ns0:job name="PCS I2 (Battery Energy Storage Systems) - Voltage Setpoint Step">
+    <ns0:solver lib="dynawo_SolverIDA" parFile="Merged.par" parId="IDA" />
+    <ns0:modeler compileDir="outputs/compilation">
+      <ns0:dynModels dydFile="Merged.dyd" />
+      <ns0:precompiledModels useStandardModels="true" />
+      <ns0:modelicaModels useStandardModels="true">
+        <ns0:directory path="." recursive="false" />
+      </ns0:modelicaModels>
+    </ns0:modeler>
+    <ns0:simulation startTime="0.0" stopTime="100.0" precision="1e-6" />
+    <ns0:outputs directory="outputs">
+      <ns0:timeline exportMode="XML" />
+      <ns0:finalState exportIIDMFile="true" exportDumpFile="false" />
+      <ns0:curves inputFile="TSOModel.crv" exportMode="CSV" />
+      <ns0:logs>
+        <ns0:appender tag="" file="dynawo.log" lvlFilter="INFO" />
+      </ns0:logs>
+    </ns0:outputs>
+  </ns0:job>
+</ns0:jobs>

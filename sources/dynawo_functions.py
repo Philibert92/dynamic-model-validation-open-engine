@@ -18,6 +18,8 @@ import subprocess
 from settings import Settings
 from util_functions import remove_rows_with_same_index, sample_df, rmse
 import xml.etree.ElementTree as ET
+from collections import defaultdict
+from copy import deepcopy
 
 
 class DynawoFailedException(Exception):
@@ -88,7 +90,7 @@ class DynawoParam:
 
 def run_dynawo(dynawo_launcher, jobs_file, streamlit_logger=None):
     """
-    The current version of this function calls dtnawo via subprocess.
+    The current version of this function calls dynawo via subprocess.
     In the future it might be rewritten by calling dynawo directly from pypowsybl
     """
     init_wd = os.getcwd()
@@ -156,20 +158,38 @@ def modify_multiple_param_par_file(par_file, selected_sets):
         file.write(modified_content)
 
 
-def modify_multiple_param_par_file_for_optim(par_file, x, index_to_param_map):
-    tree = ET.parse(par_file)
-    root = tree.getroot()
+def modify_multiple_param_par_file_for_optim(par_files, x, index_to_param_map):
+    """
+    Modifie les paramètres spécifiés dans tous les fichiers .par donnés dans par_files.
+    
+    par_files : dict {case_name: path_to_par_file}
+    x : liste ou array des valeurs de paramètres (par ex résultat de l'optimiseur)
+    index_to_param_map : dict {index: (set_id, param_name)}
+    """
+
     namespace = {'ns': 'http://www.rte-france.com/dynawo'}
-    for i in range(len(index_to_param_map)):
-        set_id, param_id = index_to_param_map[i]
-        param_value = x[i]
-        xpath = './/ns:set[@id="{}"]/ns:par[@name="{}"]'.format(set_id, param_id)
-        for par in root.findall(xpath, namespace):
-            par.set('value', str(param_value))
     ET.register_namespace('', 'http://www.rte-france.com/dynawo')
-    modified_content = ET.tostring(root, encoding='unicode')
-    with open(par_file, 'w') as file:
-        file.write(modified_content)
+
+    for case_name, par_file in par_files.items():
+        tree = ET.parse(par_file)
+        root = tree.getroot()
+
+        # Modification des paramètres communs à tous les fichiers
+        for idx, (set_id, param_name) in index_to_param_map.items():
+            
+            param_value = x[idx]
+
+            print('CHANGING PARAMETER : ', idx, set_id, param_name, 'WITH VALUE : ', param_value)
+
+            xpath = f'.//ns:set[@id="{set_id}"]/ns:par[@name="{param_name}"]'
+
+            for par in root.findall(xpath, namespace):
+                par.set('value', str(param_value))
+
+        # Enregistrement du fichier modifié
+        modified_content = ET.tostring(root, encoding='unicode')
+        with open(par_file, 'w') as file:
+            file.write(modified_content)
 
 
 def run_custom_dynawo(
@@ -231,7 +251,7 @@ def get_parameters_sets(par_file):
             # there exists also "reference" tags, but they refer to init values in the iidm file
             # these values are not relevant for the purpose of this model validation application
         parameters_sets[set_id] = parameters
-
+    print("parameters_set :", parameters_sets)
     return parameters_sets
 
 

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Copyright (c) 2022, RTE (http://www.rte-france.com)
+    See AUTHORS.txt
+    All rights reserved.
+    This Source Code Form is subject to the terms of the Mozilla Public
+    License, v. 2.0. If a copy of the MPL was not distributed with this
+    file, you can obtain one at http://mozilla.org/MPL/2.0/.
+    SPDX-License-Identifier: MPL-2.0
+
+    This file is part of Dynawo, an hybrid C++/Modelica open source suite of
+    simulation tools for power systems.
+-->
+<parametersSet xmlns="http://www.rte-france.com/dynawo">
+  <set id="GridFormingConverter">
+    <par type="DOUBLE" name="converter_P0Pu" value="-4.751"/>
+    <par type="DOUBLE" name="converter_Q0Pu" value="-1.562"/>
+    <par type="DOUBLE" name="converter_U0Pu" value="0.992"/>
+    <par type="DOUBLE" name="converter_UPhase0" value="0.161196"/>
+    <par type="DOUBLE" name="converter_Cdc" value="0.01"/>
+    <par type="DOUBLE" name="converter_RFilter" value="0.005"/>
+    <par type="DOUBLE" name="converter_LFilter" value="0.1"/>
+    <par type="DOUBLE" name="converter_CFilter" value="0.066"/>
+    <par type="DOUBLE" name="converter_RTransformer" value="0.01"/>
+    <par type="DOUBLE" name="converter_LTransformer" value="0.2"/>
+    <par type="DOUBLE" name="converter_SNom" value="500"/>
+    <par type="DOUBLE" name="control_KpVI" value="0.67"/>
+    <par type="DOUBLE" name="control_XRratio" value="5"/>
+    <par type="DOUBLE" name="control_Kpc" value="0.5"/>
+    <par type="DOUBLE" name="control_Kic" value="1.0"/>
+    <par type="DOUBLE" name="control_Kpv" value="0.4"/>
+    <par type="DOUBLE" name="control_Kiv" value="1.161022"/>
+    <par type="DOUBLE" name="control_Mq" value="0.000"/>
+    <par type="DOUBLE" name="control_Wf" value="60"/>
+    <par type="DOUBLE" name="control_Mp" value="0.02"/>
+    <par type="DOUBLE" name="control_Wff" value="16.66"/>
+    <par type="DOUBLE" name="control_Kff" value="0.01"/>
+    <par type="DOUBLE" name="control_RFilter" value="0.005"/>
+    <par type="DOUBLE" name="control_LFilter" value="0.15"/>
+    <par type="DOUBLE" name="control_CFilter" value="0.066"/>
+    <par type="DOUBLE" name="control_Kpdc" value="50"/>
+    <par type="DOUBLE" name="control_IMaxVI" value="1"/>
+  </set>
+  <set id="InfiniteBus">
+    <par type="STRING" name="infiniteBus_UPuTableName" value="TableUPu"/>
+    <par type="STRING" name="infiniteBus_UPhaseTableName" value="TableUPhase"/>
+    <par type="STRING" name="infiniteBus_OmegaRefPuTableName" value="TableOmegaRefPu"/>
+    <par type="STRING" name="infiniteBus_TableFile" value="table_infinite_bus.txt"/>
+  </set>
+  <set id="IDA">
+    <par type="INT" name="order" value="1"/>
+    <par type="DOUBLE" name="initStep" value="1e-7"/>
+    <par type="DOUBLE" name="minStep" value="1e-7"/>
+    <par type="DOUBLE" name="maxStep" value="10"/>
+    <par type="DOUBLE" name="absAccuracy" value="1e-3"/>
+    <par type="DOUBLE" name="relAccuracy" value="1e-3"/>
+    <par type="DOUBLE" name="minimalAcceptableStep" value="1e-7"/>
+    <par type="INT" name="maximumNumberSlowStepIncrease" value="100"/>
+  </set>
+  <set id="OmegaRef">
+    <par type="INT" name="nbGen" value="1"/>
+    <par type="DOUBLE" name="weight_gen_0" value="250"/>
+  </set>
+  
+</parametersSet>

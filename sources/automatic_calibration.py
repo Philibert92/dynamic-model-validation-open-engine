@@ -21,6 +21,9 @@ from scipy.optimize import differential_evolution
 from dynawo_functions import run_dynawo, modify_multiple_param_par_file_for_optim, \
     DynawoFailedException, get_simulation_data
 from enum import Enum
+import numpy as np
+
+
 
 
 class OptimMethod(Enum):
@@ -30,18 +33,30 @@ class OptimMethod(Enum):
 
 def objective_func(
         x, index_to_param_map,
-        dynawo_launcher, jobs_file, par_file,
-        sampled_measured_p, sampled_measured_q
+        dynawo_launcher, jobs_files, par_files,
+        sampled_measured_p_dic, sampled_measured_q_dic
 ):
-    modify_multiple_param_par_file_for_optim(par_file, x, index_to_param_map)
+    modify_multiple_param_par_file_for_optim(par_files, x, index_to_param_map)
+
     try:
-        simulation_data_df = run_dynawo(dynawo_launcher, jobs_file)
-        sampled_simulation_data_df = sample_df(simulation_data_df)
-        col_name_p, col_name_q = get_col_name_p_q()
-        sampled_simulated_p = sampled_simulation_data_df[col_name_p].values
-        sampled_simulated_q = sampled_simulation_data_df[col_name_q].values
-        error = rmse(sampled_measured_p, sampled_measured_q, sampled_simulated_p, sampled_simulated_q)
+
+        error = 0.0
+
+        for case, jobs_file in jobs_files.items():
+            
+            simulation_data_df = run_dynawo(dynawo_launcher, jobs_file)
+            sampled_simulation_data_df = sample_df(simulation_data_df)
+            col_name_p, col_name_q = get_col_name_p_q()
+            sampled_simulated_p = sampled_simulation_data_df[col_name_p].values
+            sampled_simulated_q = sampled_simulation_data_df[col_name_q].values
+            sampled_measured_p = sampled_measured_p_dic[case]
+            sampled_measured_q = sampled_measured_q_dic[case]
+            error += rmse(sampled_measured_p, sampled_measured_q, sampled_simulated_p, sampled_simulated_q)
+        
+        print('GLOBAL RMSE COMPUTED AND EQUAL TO : ', error)
+        
         return error
+    
     except DynawoFailedException:
         SUPER_HIGH_VALUE_ERROR = 9999
         return SUPER_HIGH_VALUE_ERROR
@@ -98,11 +113,11 @@ def log_final_param_values(x_calibrated, x0, index_to_param_map, streamlit_logge
 
 def nelder_mead_calibration(
             dynawo_launcher,
-            jobs_file,
-            par_file,
+            jobs_files,
+            par_files,
             selected_sets,
-            measured_p,
-            measured_q,
+            measured_p_dic,
+            measured_q_dic,
             streamlit_logger=None
         ):
     """
@@ -110,36 +125,52 @@ def nelder_mead_calibration(
     """
     discrete_variables_allowed = False  # Nelder-Mead can't manage discrete variables
     x0, bounds, index_to_param_map = prepare_x0(selected_sets, discrete_variables_allowed, streamlit_logger)
+    print('INITIALISATION ------ x0 :', x0, ' - bounds', bounds, ' - index :', index_to_param_map)
+    #  x0 : [3.0] 
+    #  bounds [(-3.0, 30.0)] 
+    #  index_to _param_map : {0: ('SynchronousGenerator', 'generator_H')}
 
     errors = []
 
     def callback(x):
         # This callback consumes time.
         # Consider adding an option to mute him.
-        error = objective_func(x, index_to_param_map, dynawo_launcher, jobs_file, par_file, measured_p, measured_q)
+        error = objective_func(x, index_to_param_map, dynawo_launcher, jobs_files, par_files, measured_p_dic, measured_q_dic)
         error = round(error, 4)
         errors.append(error)
         if streamlit_logger is not None:
             iteration_num = len(errors)
-            streamlit_logger.info(f"--- Iteration {iteration_num} - rmse: {error}")
+            streamlit_logger.info(f"--- Iteration {iteration_num} - global rmse: {error}")
+            print(f"--- Iteration {iteration_num} - global rmse: {error}")
             log_param_values(x, index_to_param_map, streamlit_logger)
             streamlit_logger.info("")
 
+    print("ENTERING MINIMIZE FUNCTION")
     opt_result = minimize(
-        lambda x: objective_func(x, index_to_param_map, dynawo_launcher, jobs_file, par_file, measured_p, measured_q),
+        lambda x: objective_func(x, index_to_param_map, dynawo_launcher, jobs_files, par_files, measured_p_dic, measured_q_dic),
         x0,
         bounds=bounds,
         method="Nelder-Mead",
         callback=callback,
-        options={"maxiter": 100}
+        options={"maxiter": 15}
     )
 
+    print("OUT MINIMIZE FUNCTION")
     x_calibrated = opt_result.x
+    print('X CALIBRATED : ', x_calibrated)
+    print('LOGGER 1 : ', streamlit_logger)
+    
     if streamlit_logger is not None:
         log_final_param_values(x_calibrated, x0, index_to_param_map, streamlit_logger)
 
-    calibrated_simulation_data_df = get_simulation_data(jobs_file)
-    return calibrated_simulation_data_df
+    calibrated_simulations_data_df = {}
+
+    for case_name, jobs_file in jobs_files.items():
+        print('CASE : ', case_name, 'JOBS : ', jobs_file)
+        calibrated_simulations_data_df[case_name] = get_simulation_data(jobs_file)
+        print('CALIBRATED SIMULATIONS DATA DF : ', calibrated_simulations_data_df[case_name])
+
+    return calibrated_simulations_data_df
 
 
 def differential_evolution_calibration(
@@ -191,23 +222,33 @@ def differential_evolution_calibration(
 
 def run_parameter_calibration(
         dynawo_launcher,
-        jobs_file,
-        par_file,
+        jobs_files,
+        par_files,
         selected_sets,
-        sampled_measured_p,
-        sampled_measured_q,
-        base_case_rmse,
+        sampled_measured_p_dic,
+        sampled_measured_q_dic,
+        base_cases_rmse,
         optim_method: OptimMethod,
         streamlit_logger=None
 ):
+    """
+    Perform a GLOBAL optimization across all cases.
+    One set of parameters is optimized to minimize the aggregated RMSE 
+    across ALL cases.
+    """
+
+    print("IN run_parameter_calibration function !")
+
     # TODO : add button to stop optimization ?
     if streamlit_logger is not None:
         streamlit_logger.info("Start of calibration")
         streamlit_logger.info("Optimization method: " + optim_method.value)
         streamlit_logger.info("")
-        streamlit_logger.info(f"--- Initial parameters - rmse: {round(base_case_rmse, 4)}")
+        global_rmse_sum = float(np.sum(list(base_cases_rmse.values())))
+        streamlit_logger.info(f"--- Initial parameters - global rmse: {round(global_rmse_sum, 4)}")
         streamlit_logger.info("")
 
+    # To adapt to multi-case
     if optim_method == OptimMethod.DIFFERENTIAL_EVOLUTION:
         calibrated_simulation_data_df = differential_evolution_calibration(
             dynawo_launcher,
@@ -218,19 +259,23 @@ def run_parameter_calibration(
             sampled_measured_q,
             streamlit_logger
         )
+    
+    # Adapted to multi-case
     else:
-        calibrated_simulation_data_df = nelder_mead_calibration(
+        calibrated_simulations_data_df = nelder_mead_calibration(
             dynawo_launcher,
-            jobs_file,
-            par_file,
+            jobs_files,
+            par_files,
             selected_sets,
-            sampled_measured_p,
-            sampled_measured_q,
+            sampled_measured_p_dic,
+            sampled_measured_q_dic,
             streamlit_logger
         )
+
+    print('LOGGER : ', streamlit_logger)
 
     if streamlit_logger is not None:
         streamlit_logger.info("End of calibration")
 
-    return calibrated_simulation_data_df
+    return calibrated_simulations_data_df
 

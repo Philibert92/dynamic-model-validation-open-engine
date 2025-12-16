@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ns0:parametersSet xmlns:ns0="http://www.rte-france.com/dynawo">
+ 
+  <ns0:set id="Bess">
+   
+    <ns0:par type="DOUBLE" name="BESS_tRv" value="0.02" />
+    <ns0:par type="DOUBLE" name="BESS_Kqv" value="4" />
+    <ns0:par type="DOUBLE" name="BESS_Kqp" value="1" />
+    <ns0:par type="DOUBLE" name="BESS_Kqi" value="1e-5" />
+    <ns0:par type="DOUBLE" name="BESS_Kvp" value="1" />
+    <ns0:par type="DOUBLE" name="BESS_Kvi" value="1e-5" />
+    <ns0:par type="DOUBLE" name="BESS_tIq" value="1e-5" />
+    <ns0:par type="DOUBLE" name="BESS_tPord" value="1e-5" />
+    <ns0:par type="DOUBLE" name="BESS_tG" value="0.017" />
+    <ns0:par type="DOUBLE" name="BESS_tFilterGC" value="1e-5" />
+    <ns0:par type="DOUBLE" name="BESS_RrpwrPu" value="999" />
+    <ns0:par type="DOUBLE" name="BESS_Kc" value="0.142" />
+    <ns0:par type="DOUBLE" name="BESS_tFilterPC" value="0.0002" />
+    <ns0:par type="DOUBLE" name="BESS_tFt" value="1e-3" />
+    <ns0:par type="DOUBLE" name="BESS_tFv" value="1e-3" />
+    <ns0:par type="DOUBLE" name="BESS_tDelay" value="0.062" />
+    <ns0:par type="DOUBLE" name="BESS_tP" value="0.01" />
+    <ns0:par type="DOUBLE" name="BESS_tLag" value="0.04" />
+    <ns0:par type="DOUBLE" name="BESS_Kp" value="1e-5" />
+    <ns0:par type="DOUBLE" name="BESS_Ki" value="25.8" />
+    <ns0:par type="DOUBLE" name="BESS_Kpg" value="1" />
+    <ns0:par type="DOUBLE" name="BESS_Kig" value="10" />
+    <ns0:par type="DOUBLE" name="BESS_VFrz" value="1e-5" />
+    <ns0:par type="DOUBLE" name="BESS_KiPLL" value="20" />
+    <ns0:par type="DOUBLE" name="BESS_KpPLL" value="3" />
+    <ns0:par type="DOUBLE" name="BESS_OmegaMaxPu" value="1.5" />
+    <ns0:par type="DOUBLE" name="BESS_OmegaMinPu" value="0.5" />
+    <ns0:par type="DOUBLE" name="BESS_rTfoPu" value="0.95" />
+    <ns0:par type="DOUBLE" name="BESS_RLvTrPu" value="0.01" />
+    <ns0:par type="DOUBLE" name="BESS_XLvTrPu" value="0.06" />
+    <ns0:par type="DOUBLE" name="BESS_RMvHvPu" value="0" />
+    <ns0:par type="DOUBLE" name="BESS_XMvHvPu" value="0.12" />
+    <ns0:par type="DOUBLE" name="BESS_BMvHvPu" value="0" />
+    <ns0:par type="DOUBLE" name="BESS_GMvHvPu" value="0" />
+  </ns0:set>
+</ns0:parametersSet>

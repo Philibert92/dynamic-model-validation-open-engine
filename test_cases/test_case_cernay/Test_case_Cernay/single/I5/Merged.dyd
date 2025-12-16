@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ns0:dynamicModelsArchitecture xmlns:ns0="http://www.rte-france.com/dynawo">
+  <ns0:blackBoxModel id="InfiniteBus" lib="InfiniteBus" parFile="Merged.par" parId="InfiniteBus" />
+  <ns0:blackBoxModel id="Bus" lib="Bus" />
+  <ns0:blackBoxModel id="BusPDR" lib="Bus" />
+  <ns0:blackBoxModel id="Line1" lib="Line" parFile="Merged.par" parId="Line1" />
+  <ns0:blackBoxModel id="Line2" lib="Line" parFile="Merged.par" parId="Line2" />
+  <ns0:blackBoxModel id="Line3" lib="Line" parFile="Merged.par" parId="Line3" />
+  <ns0:blackBoxModel id="Line4a" lib="Line" parFile="Merged.par" parId="Line4a" />
+  <ns0:blackBoxModel id="Line4b" lib="Line" parFile="Merged.par" parId="Line4b" />
+  <ns0:blackBoxModel id="NODE_FAULT" lib="NodeFault" parFile="Merged.par" parId="NodeFault" />
+  <ns0:blackBoxModel id="DISCONNECT_LINE" lib="EventSetPointBoolean" parFile="Merged.par" parId="DisconnectLine" />
+  <ns0:connect id1="Line1" var1="line_terminal1" id2="InfiniteBus" var2="infiniteBus_terminal" />
+  <ns0:connect id1="Line2" var1="line_terminal1" id2="InfiniteBus" var2="infiniteBus_terminal" />
+  <ns0:connect id1="Line3" var1="line_terminal1" id2="InfiniteBus" var2="infiniteBus_terminal" />
+  <ns0:connect id1="Line4b" var1="line_terminal1" id2="InfiniteBus" var2="infiniteBus_terminal" />
+  <ns0:connect id1="Line4b" var1="line_terminal2" id2="Bus" var2="bus_terminal" />
+  <ns0:connect id1="Line4a" var1="line_terminal1" id2="Bus" var2="bus_terminal" />
+  <ns0:connect id1="Line1" var1="line_terminal2" id2="BusPDR" var2="bus_terminal" />
+  <ns0:connect id1="Line2" var1="line_terminal2" id2="BusPDR" var2="bus_terminal" />
+  <ns0:connect id1="Line3" var1="line_terminal2" id2="BusPDR" var2="bus_terminal" />
+  <ns0:connect id1="Line4a" var1="line_terminal2" id2="BusPDR" var2="bus_terminal" />
+  <ns0:connect id1="NODE_FAULT" var1="fault_terminal" id2="Bus" var2="bus_terminal" />
+  <ns0:connect id1="DISCONNECT_LINE" var1="event_state1" id2="Line4b" var2="line_switchOffSignal2" />
+  <ns0:blackBoxModel id="OmegaRef" lib="SetPoint" parFile="Merged.par" parId="OmegaRef" />
+  <ns0:connect id1="Bess" var1="BESS_omegaRefPu" id2="OmegaRef" var2="setPoint_setPoint" />
+  <ns0:blackBoxModel id="StepUp_Xfmr" lib="TransformerRatioTapChanger" parFile="Merged.par" parId="StepUp_Xfmr" />
+  <ns0:blackBoxModel id="Bess" lib="BESSWeccCurrentSource" parFile="Merged.par" parId="Bess" />
+  <ns0:connect id1="StepUp_Xfmr" var1="transformer_terminal1" id2="BusPDR" var2="bus_terminal" />
+  <ns0:connect id1="Bess" var1="BESS_terminal" id2="StepUp_Xfmr" var2="transformer_terminal2" />
+</ns0:dynamicModelsArchitecture>
